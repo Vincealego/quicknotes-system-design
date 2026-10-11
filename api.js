@@ -71,6 +71,16 @@ function render() {
 
     item.append(title, body);
 
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.classList.add("delete-btn");
+    deleteBtn.textContent = "Delete";
+    deleteBtn.disabled = busy;
+    deleteBtn.addEventListener("click", function () {
+      deleteNote(note.key);
+    });
+    item.appendChild(deleteBtn);
+
     notesList.appendChild(item);
   });
 }
@@ -135,6 +145,43 @@ async function createNote(event) {
     );
   } catch (error) {
     setStatus("Sorry, we couldn't create your note. Please try again.", "error");
+  } finally {
+    setBusy(false);
+  }
+}
+
+// ---------- DELETE: remove a note ----------
+// JSONPlaceholder is a practice API: it ACCEPTS create and delete requests and
+// replies with a success status, but it does NOT store anything. So:
+//  - every note we create comes back with the same id (101), which is why each
+//    note on the page also has its own unique "key" (a delete removes only the
+//    note whose button was clicked, never every note with id 101);
+//  - the page's own notes array is our working copy. We send the DELETE request,
+//    and only when the server says OK do we remove the note from that array and
+//    redraw the list;
+//  - clicking "Load notes" again fetches the original 10 notes, so notes created
+//    or deleted here are not remembered. A real backend would remember them.
+async function deleteNote(key) {
+  const note = notes.find(function (item) {
+    return item.key === key;
+  });
+  if (!note) {
+    return;
+  }
+
+  setBusy(true);
+  setStatus("Deleting note...", "loading");
+
+  try {
+    const result = await request(`${API_URL}/${note.id}`, { method: "DELETE" });
+
+    notes = notes.filter(function (item) {
+      return item.key !== key;
+    });
+    render();
+    setStatus(`Note ${note.id} deleted (status ${result.status}).`, "success");
+  } catch (error) {
+    setStatus("Sorry, we couldn't delete that note. Please try again.", "error");
   } finally {
     setBusy(false);
   }
